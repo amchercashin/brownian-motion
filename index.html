@@ -14,7 +14,7 @@
         .border {
             border: 1px solid gray;
         }
-        .slider-container {
+        .slider-container, .stats-container {
             margin-top: 20px;
             width: 100%;
             max-width: 400px;
@@ -45,6 +45,11 @@
             <input id="density-slider" type="range" min="0.1" max="1" step="0.05" value="0.3">
         </div>
         <button id="wave-button" class="button">Запустить волну</button>
+        <div class="stats-container">
+            <p>Сумма скоростей всех Шариков с учетом направления: <span id="sum-velocity-direction">0</span></p>
+            <p>Сумма всех скоростей Шариков без учета направления: <span id="sum-velocity-magnitude">0</span></p>
+            <p>Максимальная скорость одного шарика: <span id="max-velocity">0</span></p>
+        </div>
     </div>
 
     <script>
@@ -54,6 +59,9 @@
         const waveButton = document.getElementById('wave-button');
         const speedValue = document.getElementById('speed-value');
         const densityValue = document.getElementById('density-value');
+        const sumVelocityDirectionElem = document.getElementById('sum-velocity-direction');
+        const sumVelocityMagnitudeElem = document.getElementById('sum-velocity-magnitude');
+        const maxVelocityElem = document.getElementById('max-velocity');
 
         const width = 400;
         const height = 400;
@@ -104,6 +112,10 @@
         }
 
         function animate() {
+            let sumVelocityDirection = 0;
+            let sumVelocityMagnitude = 0;
+            let maxVelocity = 0;
+
             particles.forEach(particle => {
                 if (waveActive && particle.x < 20) {
                     particle.vx += waveForce;
@@ -152,7 +164,16 @@
                         other.y += moveY;
                     }
                 }
+
+                const velocityDirection = Math.sqrt(particle.vx ** 2 + particle.vy ** 2);
+                sumVelocityDirection += particle.vx + particle.vy;
+                sumVelocityMagnitude += velocityDirection;
+                maxVelocity = Math.max(maxVelocity, velocityDirection);
             });
+
+            sumVelocityDirectionElem.textContent = sumVelocityDirection.toFixed(2);
+            sumVelocityMagnitudeElem.textContent = sumVelocityMagnitude.toFixed(2);
+            maxVelocityElem.textContent = maxVelocity.toFixed(2);
 
             if (waveActive) {
                 waveActive = false;
