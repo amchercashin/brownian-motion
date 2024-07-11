@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brownian Motion Simulation</title>
+    <style>
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+        }
+        .border {
+            border: 1px solid gray;
+        }
+        .slider-container {
+            margin-top: 20px;
+            width: 100%;
+            max-width: 400px;
+        }
+        .button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: blue;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .button:hover {
+            background-color: darkblue;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <svg id="simulation" width="400" height="400" class="border"></svg>
+        <div class="slider-container">
+            <label for="speed-slider">Скорость движения: <span id="speed-value">1.0x</span></label>
+            <input id="speed-slider" type="range" min="0.1" max="3" step="0.1" value="1">
+        </div>
+        <div class="slider-container">
+            <label for="density-slider">Плотность: <span id="density-value">70%</span></label>
+            <input id="density-slider" type="range" min="0.1" max="1" step="0.05" value="0.7">
+        </div>
+        <button id="wave-button" class="button">Запустить волну</button>
+    </div>
+
+    <script>
+        const svg = document.getElementById('simulation');
+        const speedSlider = document.getElementById('speed-slider');
+        const densitySlider = document.getElementById('density-slider');
+        const waveButton = document.getElementById('wave-button');
+        const speedValue = document.getElementById('speed-value');
+        const densityValue = document.getElementById('density-value');
+
+        const width = 400;
+        const height = 400;
+        const maxParticles = 1500;
+        const particleRadius = 6;
+        const waveForce = 5;
+        let particles = [];
+        let speed = 1;
+        let density = 0.7;
+        let waveActive = false;
+
+        function initializeParticles(density) {
+            const numParticles = Math.floor(maxParticles * density);
+            const redRatio = 0.2;
+            const redWidth = width * 0.3;
+            const redHeight = height * 0.3;
+            const particles = [];
+
+            for (let i = 0; i < numParticles; i++) {
+                const isRed = i < numParticles * redRatio;
+                let x, y;
+
+                if (isRed) {
+                    x = (width - redWidth) / 2 + Math.random() * redWidth;
+                    y = (height - redHeight) / 2 + Math.random() * redHeight;
+                } else {
+                    do {
+                        x = Math.random() * width;
+                        y = Math.random() * height;
+                    } while (
+                        x > (width - redWidth) / 2 && 
+                        x < (width + redWidth) / 2 && 
+                        y > (height - redHeight) / 2 && 
+                        y < (height + redHeight) / 2
+                    );
+                }
+
+                particles.push({
+                    x,
+                    y,
+                    vx: (Math.random() - 0.5) * 2,
+                    vy: (Math.random() - 0.5) * 2,
+                    color: isRed ? 'red' : 'blue'
+                });
+            }
+
+            return particles;
+        }
+
+        function animate() {
+            particles.forEach(particle => {
+                if (waveActive && particle.x < 20) {
+                    particle.vx += waveForce;
+                }
+
+                particle.x += particle.vx * speed;
+                particle.y += particle.vy * speed;
+
+                if (particle.x <= particleRadius || particle.x >= width - particleRadius) {
+                    particle.vx = -particle.vx;
+                    particle.x = Math.max(particleRadius, Math.min(width - particleRadius, particle.x));
+                }
+                if (particle.y <= particleRadius || particle.y >= height - particleRadius) {
+                    particle.vy = -particle.vy;
+                    particle.y = Math.max(particleRadius, Math.min(height - particleRadius, particle.y));
+                }
+
+                for (let other of particles) {
+                    if (particle === other) continue;
+
+                    const dx = other.x - particle.x;
+                    const dy = other.y - particle.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < 2 * particleRadius) {
+                        const angle = Math.atan2(dy, dx);
+                        const sin = Math.sin(angle);
+                        const cos = Math.cos(angle);
+
+                        const vx1 = particle.vx * cos + particle.vy * sin;
+                        const vy1 = particle.vy * cos - particle.vx * sin;
+                        const vx2 = other.vx * cos + other.vy * sin;
+                        const vy2 = other.vy * cos - other.vx * sin;
+
+                        particle.vx = vx2 * cos - vy1 * sin;
+                        particle.vy = vy1 * cos + vx2 * sin;
+                        other.vx = vx1 * cos - vy2 * sin;
+                        other.vy = vy2 * cos + vx1 * sin;
+
+                        const overlap = 2 * particleRadius - distance;
+                        const moveX = overlap * cos / 2;
+                        const moveY = overlap * sin / 2;
+                        particle.x -= moveX;
+                        particle.y -= moveY;
+                        other.x += moveX;
+                        other.y += moveY;
+                    }
+                }
+            });
+
+            if (waveActive) {
+                waveActive = false;
+            }
+
+            drawParticles();
+        }
+
+        function drawParticles() {
+            svg.innerHTML = '';
+            particles.forEach(particle => {
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', particle.x);
+                circle.setAttribute('cy', particle.y);
+                circle.setAttribute('r', particleRadius);
+                circle.setAttribute('fill', particle.color);
+                svg.appendChild(circle);
+            });
+        }
+
+        function updateParticles() {
+            particles = initializeParticles(density);
+            drawParticles();
+        }
+
+        speedSlider.addEventListener('input', () => {
+            speed = parseFloat(speedSlider.value);
+            speedValue.textContent = speed.toFixed(1) + 'x';
+        });
+
+        densitySlider.addEventListener('input', () => {
+            density = parseFloat(densitySlider.value);
+            densityValue.textContent = (density * 100).toFixed(0) + '%';
+            updateParticles();
+        });
+
+        waveButton.addEventListener('click', () => {
+            waveActive = true;
+        });
+
+        particles = initializeParticles(density);
+        setInterval(animate, 20);
+    </script>
+</body>
+</html>
